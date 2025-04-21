@@ -277,6 +277,10 @@ def run(query: str) -> str:
 
 
 if __name__ == "__main__":
+    #create file ./data/output/trace.txt, if it doesn't exist. If it does exist, it will be overwritten:
+    with open("./data/output/trace.txt", "w") as f:
+        f.write("")
+    
     query = "What is the age of the oldest tree in the country that has won the most FIFA World Cup titles?"
     final_answer = run(query)
     logger.info(final_answer)
