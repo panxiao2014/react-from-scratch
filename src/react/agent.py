@@ -1,11 +1,10 @@
-from vertexai.generative_models import GenerativeModel 
 from src.tools.serp import search as google_search
 from src.tools.wiki import search as wiki_search
 from vertexai.generative_models import Part 
 from src.utils.io import write_to_file
 from src.config.logging import logger
-from src.config.setup import config
-from src.llm.gemini import generate
+from src.llm.gemini import Gemini
+from src.llm.deepseek import DeepSeek
 from src.utils.io import read_file
 from pydantic import BaseModel
 from typing import Callable
@@ -92,18 +91,22 @@ class Agent:
     Defines the agent responsible for executing queries and handling tool interactions.
     """
 
-    def __init__(self, model: GenerativeModel) -> None:
+    def __init__(self, model: str) -> None:
         """
         Initializes the Agent with a generative model, tools dictionary, and a messages log.
 
         Args:
             model (GenerativeModel): The generative model used by the agent.
         """
-        self.model = model
+        if(model == "gemini"):
+            self.llm = Gemini()
+        elif(model == "deepseek"):
+            self.llm = DeepSeek()
+
         self.tools: Dict[Name, Tool] = {}
         self.messages: List[Message] = []
         self.query = ""
-        self.max_iterations = 5
+        self.max_iterations = 10
         self.current_iteration = 0
         self.template = self.load_template()
 
@@ -166,7 +169,7 @@ class Agent:
             tools=', '.join([str(tool.name) for tool in self.tools.values()])
         )
 
-        response = self.ask_gemini(prompt)
+        response = self.llm.generate(prompt)
         logger.info(f"Thinking => {response}")
         self.trace("assistant", f"Thought: {response}")
         self.decide(response)
@@ -242,19 +245,7 @@ class Agent:
         self.think()
         return self.messages[-1].content
 
-    def ask_gemini(self, prompt: str) -> str:
-        """
-        Queries the generative model with a prompt.
 
-        Args:
-            prompt (str): The prompt text for the model.
-
-        Returns:
-            str: The model's response as a string.
-        """
-        contents = [Part.from_text(prompt)]
-        response = generate(self.model, contents)
-        return str(response) if response is not None else "No response from Gemini"
 
 def run(query: str) -> str:
     """
@@ -266,9 +257,8 @@ def run(query: str) -> str:
     Returns:
         str: The agent's final answer.
     """
-    gemini = GenerativeModel(config.MODEL_NAME)
 
-    agent = Agent(model=gemini)
+    agent = Agent(model='deepseek')
     agent.register(Name.WIKIPEDIA, wiki_search)
     agent.register(Name.GOOGLE, google_search)
 
